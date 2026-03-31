@@ -84,7 +84,7 @@ export default function MapView() {
           className="header-info-btn"
           onClick={() => setDrawerOpen(true)}
           aria-label="Über diese Seite"
-          title="Über Doki"
+          title="Über diese Seite"
         >
           ℹ
         </button>

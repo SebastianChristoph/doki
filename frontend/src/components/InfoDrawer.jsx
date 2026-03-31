@@ -6,14 +6,14 @@ export default function InfoDrawer({ isOpen, onClose }) {
       {isOpen && <div className="drawer-overlay" onClick={onClose} />}
       <aside className={`drawer ${isOpen ? 'drawer-open' : ''}`} aria-hidden={!isOpen}>
         <div className="drawer-header">
-          <h2>Über Doki</h2>
+          <h2>Über diese Seite</h2>
           <button className="drawer-close" onClick={onClose} aria-label="Schließen">×</button>
         </div>
         <div className="drawer-body">
           <section className="drawer-section">
-            <h3>Was ist Doki?</h3>
+            <h3>Doberlug-Kirchhain – Historische Fotos & Stadtansichten</h3>
             <p>
-              Doki ist ein gemeinschaftliches Foto-Archiv für Doberlug-Kirchhain.
+              Ein gemeinschaftliches Foto-Archiv für DoKi.
               Bürger und Heimatforscher können historische Aufnahmen direkt auf der
               Karte hinterlegen – und so gemeinsam an einem lebendigen Stadtgedächtnis mitwirken.
             </p>
