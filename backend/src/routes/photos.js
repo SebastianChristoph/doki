@@ -62,7 +62,7 @@ router.get('/location', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, filename, original_filename, title, date_taken,
-              photographer_name, uploader_name, description, lat, lng, created_at
+              photographer_name, uploader_name, description, source, lat, lng, created_at
        FROM photos
        WHERE status = 'approved' AND lat = $1 AND lng = $2
        ORDER BY created_at DESC`,
@@ -146,7 +146,7 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
     } catch { /* proceed with original if sharp fails */ }
   }
 
-  const { lat, lng, title, date_taken, photographer_name, uploader_name, description } = req.body;
+  const { lat, lng, title, date_taken, photographer_name, uploader_name, description, source } = req.body;
   if (!lat || !lng) return res.status(400).json({ error: 'Koordinaten fehlen' });
 
   const roundedLat = parseFloat(lat).toFixed(7);
@@ -154,8 +154,8 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
 
   try {
     await pool.query(
-      `INSERT INTO photos (lat, lng, filename, original_filename, title, date_taken, photographer_name, uploader_name, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `INSERT INTO photos (lat, lng, filename, original_filename, title, date_taken, photographer_name, uploader_name, description, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         roundedLat,
         roundedLng,
@@ -166,6 +166,7 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
         sanitize(photographer_name),
         sanitize(uploader_name),
         sanitize(description, 1000),
+        sanitize(source, 500),
       ]
     );
     res.status(201).json({ message: 'Foto eingereicht. Es wird vor Veröffentlichung geprüft.' });
@@ -179,7 +180,7 @@ router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, lat, lng, filename, original_filename, title, date_taken,
-              photographer_name, uploader_name, description, created_at
+              photographer_name, uploader_name, description, source, created_at
        FROM photos WHERE id = $1 AND status = 'approved'`,
       [req.params.id]
     );

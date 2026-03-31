@@ -72,6 +72,7 @@ export default function PhotoGalleryModal({ location, onClose, onUpload }) {
                   <p><strong>Eingereicht von:</strong> {selected.uploader_name}</p>
                 )}
                 {selected.description && <p>{selected.description}</p>}
+                {selected.source && <p><strong>Quelle:</strong> {selected.source}</p>}
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.25rem' }}>
                   📍 {parseFloat(selected.lat || location.lat).toFixed(5)}° N,{' '}
                   {parseFloat(selected.lng || location.lng).toFixed(5)}° E

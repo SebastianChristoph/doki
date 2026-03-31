@@ -27,6 +27,10 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_photos_status ON photos(status);
     CREATE INDEX IF NOT EXISTS idx_photos_location ON photos(lat, lng);
   `);
+  // Migration: add source column if not yet present
+  await pool.query(`
+    ALTER TABLE photos ADD COLUMN IF NOT EXISTS source VARCHAR(500);
+  `);
 }
 
 module.exports = { pool, initDb };

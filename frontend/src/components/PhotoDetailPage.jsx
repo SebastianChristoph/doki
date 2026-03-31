@@ -106,6 +106,9 @@ export default function PhotoDetailPage() {
             {photo.description && (
               <p className="detail-description">{photo.description}</p>
             )}
+            {photo.source && (
+              <div><strong>Quelle:</strong> {photo.source}</div>
+            )}
           </div>
 
           <div className="detail-location">

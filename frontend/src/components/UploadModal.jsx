@@ -11,6 +11,7 @@ export default function UploadModal({ location, onClose, onSuccess }) {
     photographer_name: '',
     uploader_name: '',
     description: '',
+    source: '',
   });
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -140,6 +141,11 @@ export default function UploadModal({ location, onClose, onSuccess }) {
                   <label>Beschreibung (optional)</label>
                   <textarea maxLength={1000} rows={3} value={form.description}
                     onChange={set('description')} placeholder="Was ist auf dem Foto zu sehen?" />
+                </div>
+                <div className="form-group">
+                  <label>Quelle (optional)</label>
+                  <input type="text" maxLength={500} value={form.source} onChange={set('source')}
+                    placeholder="z. B. Stadtarchiv Doberlug-Kirchhain, Privatsammlung Max Mustermann" />
                 </div>
                 <div className="form-group checkbox-group">
                   <input type="checkbox" id="agree" checked={agreed}
