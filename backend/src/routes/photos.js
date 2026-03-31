@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 
@@ -72,10 +73,17 @@ router.get('/location', async (req, res) => {
 router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen' });
 
-  // Reject suspiciously small files (< 5 KB)
-  if (req.file.size < 5 * 1024) {
-    fs.unlink(req.file.path, () => {});
-    return res.status(400).json({ error: 'Das Bild ist zu klein. Bitte lade ein vollständiges Foto hoch (min. 5 KB).' });
+  // Resize if dimensions exceed 2400 px on either side (GIF skipped — animated frames)
+  if (req.file.mimetype !== 'image/gif') {
+    try {
+      const meta = await sharp(req.file.path).metadata();
+      if ((meta.width ?? 0) > 2400 || (meta.height ?? 0) > 2400) {
+        const buf = await sharp(req.file.path)
+          .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
+          .toBuffer();
+        fs.writeFileSync(req.file.path, buf);
+      }
+    } catch { /* proceed with original if sharp fails */ }
   }
 
   const { lat, lng, title, date_taken, photographer_name, uploader_name, description } = req.body;

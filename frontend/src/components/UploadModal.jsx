@@ -73,7 +73,7 @@ export default function UploadModal({ location, onClose, onSuccess }) {
                   <label>Foto auswählen *</label>
                   <input type="file" accept="image/jpeg,image/png,image/gif,image/webp"
                     onChange={(e) => setFile(e.target.files[0])} />
-                  <small>Max. 10 MB · JPG, PNG, GIF, WebP</small>
+                  <small>Max. 10 MB · JPG, PNG, GIF, WebP · Bilder über 2400 px werden automatisch verkleinert</small>
                 </div>
                 <div className="form-group">
                   <label>Titel (optional)</label>

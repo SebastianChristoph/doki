@@ -53,8 +53,9 @@ export default function InfoDrawer({ isOpen, onClose }) {
             <h3>📏 Bildgröße</h3>
             <p>
               Maximale Dateigröße: <strong>10 MB</strong>.
-              Optimal sind Dateien zwischen 500 KB und 5 MB.
-              Sehr kleine Dateien unter 5 KB werden abgelehnt.
+              Bilder mit mehr als <strong>2400 × 2400 Pixel</strong> werden beim
+              Upload automatisch proportional verkleinert – das Original bleibt
+              dabei unverändert auf deinem Gerät.
             </p>
           </section>
         </div>
