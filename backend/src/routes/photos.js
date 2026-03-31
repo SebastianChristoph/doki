@@ -7,6 +7,9 @@ const sharp = require('sharp');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 
+const MIME_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
+const ALLOWED_MIME = Object.keys(MIME_EXT);
+
 const storage = multer.diskStorage({
   destination: '/app/uploads',
   filename: (req, file, cb) => {
@@ -18,8 +21,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    allowed.includes(file.mimetype)
+    ALLOWED_MIME.includes(file.mimetype)
       ? cb(null, true)
       : cb(new Error('Nur Bilddateien erlaubt (JPG, PNG, GIF, WebP)'));
   },
@@ -34,6 +36,9 @@ const uploadLimiter = rateLimit({
 
 const sanitize = (s, maxLen = 255) =>
   s ? String(s).trim().slice(0, maxLen) : null;
+
+const isPrivateHost = (hostname) =>
+  /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/i.test(hostname);
 
 // GET /api/photos — approved, grouped by location
 router.get('/', async (req, res) => {
@@ -69,19 +74,74 @@ router.get('/location', async (req, res) => {
   }
 });
 
-// POST /api/photos — submit new photo
+// POST /api/photos — submit new photo (file upload or URL)
 router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+  let file = req.file;
 
-  // Resize if dimensions exceed 2400 px on either side (GIF skipped — animated frames)
-  if (req.file.mimetype !== 'image/gif') {
+  // URL mode: fetch image server-side
+  if (!file) {
+    const imageUrl = req.body.image_url?.trim();
+    if (!imageUrl) return res.status(400).json({ error: 'Keine Datei und keine URL angegeben' });
+
+    let parsedUrl;
+    try { parsedUrl = new URL(imageUrl); }
+    catch { return res.status(400).json({ error: 'Ungültige URL' }); }
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ error: 'Nur HTTP- und HTTPS-URLs sind erlaubt' });
+    }
+    if (isPrivateHost(parsedUrl.hostname)) {
+      return res.status(400).json({ error: 'Diese URL ist nicht erlaubt' });
+    }
+
+    let response;
     try {
-      const meta = await sharp(req.file.path).metadata();
+      response = await fetch(imageUrl, {
+        signal: AbortSignal.timeout(15000),
+        headers: { 'User-Agent': 'DoKi-HistoricalPhotos/1.0' },
+      });
+    } catch {
+      return res.status(400).json({ error: 'Bild konnte nicht geladen werden (Timeout oder Verbindungsfehler)' });
+    }
+
+    if (!response.ok) {
+      return res.status(400).json({ error: `Bild konnte nicht geladen werden (HTTP ${response.status})` });
+    }
+
+    // SSRF check after redirect
+    try {
+      if (isPrivateHost(new URL(response.url).hostname)) {
+        return res.status(400).json({ error: 'Diese URL ist nicht erlaubt' });
+      }
+    } catch {}
+
+    const contentType = response.headers.get('content-type') || '';
+    const mime = ALLOWED_MIME.find((t) => contentType.includes(t));
+    if (!mime) {
+      return res.status(400).json({ error: 'URL enthält kein unterstütztes Bildformat (JPG, PNG, GIF, WebP)' });
+    }
+
+    const buf = Buffer.from(await response.arrayBuffer());
+    if (buf.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Bild über URL ist zu groß (max. 10 MB)' });
+    }
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${MIME_EXT[mime]}`;
+    const filePath = `/app/uploads/${filename}`;
+    fs.writeFileSync(filePath, buf);
+
+    file = { filename, path: filePath, mimetype: mime, size: buf.length, originalname: filename };
+  }
+
+  // Resize if dimensions exceed 2400 px (GIF skipped — animated frames)
+  if (file.mimetype !== 'image/gif') {
+    try {
+      const meta = await sharp(file.path).metadata();
       if ((meta.width ?? 0) > 2400 || (meta.height ?? 0) > 2400) {
-        const buf = await sharp(req.file.path)
+        const buf = await sharp(file.path)
           .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
           .toBuffer();
-        fs.writeFileSync(req.file.path, buf);
+        fs.writeFileSync(file.path, buf);
       }
     } catch { /* proceed with original if sharp fails */ }
   }
@@ -99,8 +159,8 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
       [
         roundedLat,
         roundedLng,
-        req.file.filename,
-        sanitize(req.file.originalname),
+        file.filename,
+        sanitize(file.originalname),
         sanitize(title),
         date_taken || null,
         sanitize(photographer_name),

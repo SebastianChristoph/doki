@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { uploadPhoto } from '../api';
 
 export default function UploadModal({ location, onClose, onSuccess }) {
+  const [mode, setMode] = useState('file'); // 'file' | 'url'
   const [file, setFile] = useState(null);
+  const [imageUrl, setImageUrl] = useState('');
   const [form, setForm] = useState({
     title: '',
     date_taken: '',
@@ -19,11 +21,16 @@ export default function UploadModal({ location, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) { setError('Bitte wähle ein Foto aus.'); return; }
+    if (mode === 'file' && !file) { setError('Bitte wähle ein Foto aus.'); return; }
+    if (mode === 'url' && !imageUrl.trim()) { setError('Bitte gib eine Bild-URL ein.'); return; }
     if (!agreed) { setError('Bitte bestätige die Nutzungsbedingungen.'); return; }
 
     const fd = new FormData();
-    fd.append('photo', file);
+    if (mode === 'file') {
+      fd.append('photo', file);
+    } else {
+      fd.append('image_url', imageUrl.trim());
+    }
     fd.append('lat', location.lat);
     fd.append('lng', location.lng);
     Object.entries(form).forEach(([k, v]) => { if (v) fd.append(k, v); });
@@ -39,6 +46,8 @@ export default function UploadModal({ location, onClose, onSuccess }) {
       setLoading(false);
     }
   };
+
+  const switchMode = (m) => { setMode(m); setError(''); setFile(null); setImageUrl(''); };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -63,18 +72,49 @@ export default function UploadModal({ location, onClose, onSuccess }) {
           ) : (
             <>
               <div className="disclaimer">
-                <strong>Wichtiger Hinweis:</strong> Lade nur Fotos hoch, die du selbst erstellt hast
-                oder für die du das Recht zur Veröffentlichung besitzt. Keine urheberrechtlich
-                geschützten Materialien ohne ausdrückliche Erlaubnis. Keine anstößigen oder
-                illegalen Inhalte. Alle Uploads werden vor Veröffentlichung geprüft.
+                <strong>Wichtiger Hinweis:</strong> Lade nur Fotos hoch, für die du das Recht zur
+                Veröffentlichung besitzt. Keine urheberrechtlich geschützten Materialien ohne
+                ausdrückliche Erlaubnis. Alle Uploads werden vor Veröffentlichung geprüft.
               </div>
+
+              <div className="upload-mode-toggle">
+                <button
+                  type="button"
+                  className={`upload-mode-btn ${mode === 'file' ? 'active' : ''}`}
+                  onClick={() => switchMode('file')}
+                >
+                  📁 Datei hochladen
+                </button>
+                <button
+                  type="button"
+                  className={`upload-mode-btn ${mode === 'url' ? 'active' : ''}`}
+                  onClick={() => switchMode('url')}
+                >
+                  🔗 Bild-URL eingeben
+                </button>
+              </div>
+
               <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label>Foto auswählen *</label>
-                  <input type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-                    onChange={(e) => setFile(e.target.files[0])} />
-                  <small>Max. 10 MB · JPG, PNG, GIF, WebP · Bilder über 2400 px werden automatisch verkleinert</small>
-                </div>
+                {mode === 'file' ? (
+                  <div className="form-group">
+                    <label>Foto auswählen *</label>
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={(e) => setFile(e.target.files[0])} />
+                    <small>Max. 10 MB · JPG, PNG, GIF, WebP · Bilder über 2400 px werden automatisch verkleinert</small>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label>Bild-URL *</label>
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://beispiel.de/altes-foto.jpg"
+                    />
+                    <small>Die App lädt das Bild vom angegebenen Link herunter · Max. 10 MB · JPG, PNG, GIF, WebP</small>
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label>Titel (optional)</label>
                   <input type="text" maxLength={255} value={form.title} onChange={set('title')}
@@ -113,7 +153,7 @@ export default function UploadModal({ location, onClose, onSuccess }) {
                 <div className="form-actions">
                   <button type="button" className="btn-secondary" onClick={onClose}>Abbrechen</button>
                   <button type="submit" className="btn-primary" disabled={loading}>
-                    {loading ? 'Wird hochgeladen…' : 'Foto einreichen'}
+                    {loading ? (mode === 'url' ? 'Wird geladen…' : 'Wird hochgeladen…') : 'Foto einreichen'}
                   </button>
                 </div>
               </form>
