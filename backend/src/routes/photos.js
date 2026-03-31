@@ -6,6 +6,7 @@ const fs = require('fs');
 const sharp = require('sharp');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
+const { notifyNewUpload, notifyNewChangeRequest } = require('../mailer');
 
 const MIME_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
 const ALLOWED_MIME = Object.keys(MIME_EXT);
@@ -37,14 +38,36 @@ const uploadLimiter = rateLimit({
 const sanitize = (s, maxLen = 255) =>
   s ? String(s).trim().slice(0, maxLen) : null;
 
+const parseDate = (raw) => {
+  if (!raw) return { dateTaken: null, yearOnly: false };
+  const s = String(raw).trim();
+  if (/^\d{4}$/.test(s)) return { dateTaken: `${s}-01-01`, yearOnly: true };
+  return { dateTaken: s, yearOnly: false };
+};
+
 const isPrivateHost = (hostname) =>
   /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/i.test(hostname);
 
-// GET /api/photos — approved, grouped by location
+// GET /api/photos/random — random approved photo
+router.get('/random', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id FROM photos WHERE status = 'approved' ORDER BY RANDOM() LIMIT 1`
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Keine Fotos vorhanden' });
+    res.json(result.rows[0]);
+  } catch {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// GET /api/photos — approved, grouped by location (with decade info)
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT lat, lng, COUNT(*) AS count, array_agg(id ORDER BY created_at DESC) AS ids
+      SELECT lat, lng, COUNT(*) AS count,
+             array_agg(id ORDER BY created_at DESC) AS ids,
+             array_agg(EXTRACT(YEAR FROM date_taken)::int ORDER BY created_at DESC) FILTER (WHERE date_taken IS NOT NULL) AS years
       FROM photos
       WHERE status = 'approved'
       GROUP BY lat, lng
@@ -151,25 +174,88 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
 
   const roundedLat = parseFloat(lat).toFixed(7);
   const roundedLng = parseFloat(lng).toFixed(7);
+  const { dateTaken, yearOnly } = parseDate(date_taken);
 
   try {
     await pool.query(
-      `INSERT INTO photos (lat, lng, filename, original_filename, title, date_taken, photographer_name, uploader_name, description, source)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO photos (lat, lng, filename, original_filename, title, date_taken, date_year_only, photographer_name, uploader_name, description, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         roundedLat,
         roundedLng,
         file.filename,
         sanitize(file.originalname),
         sanitize(title),
-        date_taken || null,
+        dateTaken,
+        yearOnly,
         sanitize(photographer_name),
         sanitize(uploader_name),
         sanitize(description, 1000),
         sanitize(source, 500),
       ]
     );
+    notifyNewUpload({ title: sanitize(title), uploader_name: sanitize(uploader_name), lat: roundedLat, lng: roundedLng });
     res.status(201).json({ message: 'Foto eingereicht. Es wird vor Veröffentlichung geprüft.' });
+  } catch {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// GET /api/photos/:id/nearby — approved photos within ~200m
+router.get('/:id/nearby', async (req, res) => {
+  try {
+    const base = await pool.query(
+      `SELECT lat, lng FROM photos WHERE id = $1 AND status = 'approved'`,
+      [req.params.id]
+    );
+    if (!base.rows.length) return res.status(404).json({ error: 'Foto nicht gefunden' });
+    const { lat, lng } = base.rows[0];
+    const result = await pool.query(
+      `SELECT id, filename, title, date_taken, date_year_only, lat, lng
+       FROM photos
+       WHERE status = 'approved' AND id != $1
+         AND (6371000 * acos(LEAST(1, cos(radians($2)) * cos(radians(lat::float))
+           * cos(radians(lng::float) - radians($3))
+           + sin(radians($2)) * sin(radians(lat::float))))) <= 200
+       ORDER BY created_at DESC LIMIT 12`,
+      [req.params.id, parseFloat(lat), parseFloat(lng)]
+    );
+    res.json(result.rows);
+  } catch {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// POST /api/photos/:id/change-request — submit metadata edit request
+router.post('/:id/change-request', uploadLimiter, async (req, res) => {
+  try {
+    const check = await pool.query(
+      `SELECT id FROM photos WHERE id = $1 AND status = 'approved'`,
+      [req.params.id]
+    );
+    if (!check.rows.length) return res.status(404).json({ error: 'Foto nicht gefunden' });
+
+    const { title, date_taken, photographer_name, uploader_name, description, source, requester_note } = req.body;
+
+    const { dateTaken: crDate, yearOnly: crYearOnly } = parseDate(req.body.date_taken);
+    await pool.query(
+      `INSERT INTO photo_change_requests
+         (photo_id, title, date_taken, date_year_only, photographer_name, uploader_name, description, source, requester_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        req.params.id,
+        sanitize(req.body.title),
+        crDate,
+        crYearOnly,
+        sanitize(req.body.photographer_name),
+        sanitize(req.body.uploader_name),
+        sanitize(req.body.description, 1000),
+        sanitize(req.body.source, 500),
+        sanitize(req.body.requester_note, 500),
+      ]
+    );
+    notifyNewChangeRequest(req.params.id, sanitize(req.body.requester_note, 500));
+    res.status(201).json({ message: 'Änderungsantrag eingereicht. Er wird von einem Admin geprüft.' });
   } catch {
     res.status(500).json({ error: 'Datenbankfehler' });
   }

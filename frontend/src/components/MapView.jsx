@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { getPhotoLocations } from '../api';
+import { getPhotoLocations, trackVisit, getRandomPhoto } from '../api';
+import { useNavigate } from 'react-router-dom';
 import UploadModal from './UploadModal';
 import PhotoGalleryModal from './PhotoGalleryModal';
 import InfoDrawer from './InfoDrawer';
@@ -36,11 +37,13 @@ function MapClickHandler({ onMapClick }) {
 }
 
 export default function MapView() {
+  const navigate = useNavigate();
   const [locations, setLocations] = useState([]);
   const [galleryLocation, setGalleryLocation] = useState(null);
   const [uploadLocation, setUploadLocation] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const [surprising, setSurprising] = useState(false);
   const markerClicked = useRef(false);
 
   const loadLocations = useCallback(async () => {
@@ -51,6 +54,10 @@ export default function MapView() {
   }, []);
 
   useEffect(() => { loadLocations(); }, [loadLocations]);
+
+  useEffect(() => {
+    if (!localStorage.getItem('dokiAdminToken')) trackVisit();
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -73,6 +80,19 @@ export default function MapView() {
     setGalleryLocation(loc);
   };
 
+  const handleSurprise = async () => {
+    setSurprising(true);
+    try {
+      const { id } = await getRandomPhoto();
+      navigate(`/photo/${id}`);
+    } catch {
+      setToast('Noch keine Fotos vorhanden.');
+    } finally {
+      setSurprising(false);
+    }
+  };
+
+
   return (
     <div className="app">
       <header className="header">
@@ -80,15 +100,14 @@ export default function MapView() {
           <span className="header-title">Doberlug-Kirchhain</span>
           <span className="header-subtitle">Historische Fotos & Stadtansichten</span>
         </div>
-        <button
-          className="header-info-btn"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Über diese Seite"
-          title="Über diese Seite"
-        >
-          ℹ
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button className="btn-surprise" onClick={handleSurprise} disabled={surprising} title="Zufälliges Foto öffnen">
+            {surprising ? '…' : '🎲 Überrasch mich'}
+          </button>
+          <button className="header-info-btn" onClick={() => setDrawerOpen(true)} aria-label="Über diese Seite" title="Über diese Seite">ℹ</button>
+        </div>
       </header>
+
 
       <div className="map-wrapper">
         <MapContainer

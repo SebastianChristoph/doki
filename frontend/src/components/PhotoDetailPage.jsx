@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getPhotoById } from '../api';
+import { getPhotoById, getNearbyPhotos } from '../api';
+import { Link as RouterLink } from 'react-router-dom';
 import { copyToClipboard } from '../utils';
+import EditRequestModal from './EditRequestModal';
 
-const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+const fmtDate = (d, yearOnly) =>
+  d ? yearOnly
+    ? String(new Date(d).getFullYear())
+    : new Date(d).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })
+  : null;
 
 function MiniMapEmbed({ lat, lng }) {
   const delta = 0.003;
@@ -25,10 +30,13 @@ export default function PhotoDetailPage() {
   const [address, setAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [nearby, setNearby] = useState([]);
 
   useEffect(() => {
     getPhotoById(id)
-      .then(setPhoto)
+      .then(p => { setPhoto(p); return getNearbyPhotos(id); })
+      .then(setNearby)
       .catch(() => setError('Dieses Foto wurde nicht gefunden oder ist noch nicht freigegeben.'));
   }, [id]);
 
@@ -79,6 +87,7 @@ export default function PhotoDetailPage() {
         <button className={`btn-share ${copied ? 'btn-share-copied' : ''}`} onClick={handleShare}>
           {copied ? '✓ Link kopiert!' : '🔗 Teilen'}
         </button>
+        <button className="btn-share" onClick={() => setEditOpen(true)}>+ Informationen ergänzen</button>
       </div>
 
       <div className="detail-content">
@@ -94,8 +103,8 @@ export default function PhotoDetailPage() {
           {photo.title && <h1 className="detail-title">{photo.title}</h1>}
 
           <div className="detail-meta">
-            {fmtDate(photo.date_taken) && (
-              <div><strong>Aufnahmedatum:</strong> {fmtDate(photo.date_taken)}</div>
+            {fmtDate(photo.date_taken, photo.date_year_only) && (
+              <div><strong>Aufnahmedatum:</strong> {fmtDate(photo.date_taken, photo.date_year_only)}</div>
             )}
             {photo.photographer_name && (
               <div><strong>Fotograf:</strong> {photo.photographer_name}</div>
@@ -123,6 +132,24 @@ export default function PhotoDetailPage() {
           </div>
         </div>
       </div>
+      {nearby.length > 0 && (
+        <div className="nearby-section">
+          <h3 className="nearby-title">Weitere Fotos in der Nähe</h3>
+          <div className="nearby-grid">
+            {nearby.map(n => (
+              <RouterLink key={n.id} to={`/photo/${n.id}`} className="nearby-thumb">
+                <img src={`/uploads/${n.filename}`} alt={n.title || 'Foto'} />
+                {(n.title || n.date_taken) && (
+                  <div className="nearby-label">
+                    {n.title}{n.title && n.date_taken && ' · '}{n.date_taken && n.date_taken.slice(0, 4)}
+                  </div>
+                )}
+              </RouterLink>
+            ))}
+          </div>
+        </div>
+      )}
+      {editOpen && <EditRequestModal photo={photo} onClose={() => setEditOpen(false)} />}
     </div>
   );
 }

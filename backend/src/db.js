@@ -31,6 +31,38 @@ async function initDb() {
   await pool.query(`
     ALTER TABLE photos ADD COLUMN IF NOT EXISTS source VARCHAR(500);
   `);
+  // Migration: page visits
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS page_visits (
+      id SERIAL PRIMARY KEY,
+      visited_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_visits_at ON page_visits(visited_at);
+  `);
+  // Migration: date_year_only flag
+  await pool.query(`
+    ALTER TABLE photos ADD COLUMN IF NOT EXISTS date_year_only BOOLEAN DEFAULT FALSE;
+  `);
+  await pool.query(`
+    ALTER TABLE photo_change_requests ADD COLUMN IF NOT EXISTS date_year_only BOOLEAN DEFAULT FALSE;
+  `);
+  // Migration: change requests table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS photo_change_requests (
+      id SERIAL PRIMARY KEY,
+      photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      title VARCHAR(255),
+      date_taken DATE,
+      photographer_name VARCHAR(255),
+      uploader_name VARCHAR(255),
+      description TEXT,
+      source VARCHAR(500),
+      requester_note VARCHAR(500),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_cr_status ON photo_change_requests(status);
+  `);
 }
 
 module.exports = { pool, initDb };

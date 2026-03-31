@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    ports:
+      - "3001:80"
     networks:
       - internal
       - traefik-proxy
@@ -14,7 +16,11 @@ services:
       - "traefik.http.routers.doki.rule=Host(`doberlug-kirchhain-historische-fotos.de`)"
       - "traefik.http.routers.doki.entrypoints=websecure"
       - "traefik.http.routers.doki.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.doki.middlewares=doki-hsts"
       - "traefik.http.services.doki.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.doki-hsts.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.doki-hsts.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.doki-hsts.headers.forceSTSHeader=true"
       # www → non-www redirect
       - "traefik.http.routers.doki-www.rule=Host(`www.doberlug-kirchhain-historische-fotos.de`)"
       - "traefik.http.routers.doki-www.entrypoints=websecure"
@@ -29,6 +35,8 @@ services:
     container_name: doki-backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      ADMIN_PASSWORD_HASH: "$$2a$$12$$gQ77zmowFdmVclgIGMlRrOSAakLMIwDgjMs6Xiff5ux0ZuddSjKxS"
     depends_on:
       db:
         condition: service_healthy

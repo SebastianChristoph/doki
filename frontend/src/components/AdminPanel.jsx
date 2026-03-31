@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { adminLogin, getPendingPhotos, getApprovedPhotos, updatePhotoStatus, deletePhoto } from '../api';
+import { adminLogin, getPendingPhotos, getApprovedPhotos, updatePhotoStatus, deletePhoto,
+  getChangeRequests, approveChangeRequest, rejectChangeRequest, getVisitStats } from '../api';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('de-DE') : '–');
 
@@ -24,6 +25,8 @@ export default function AdminPanel() {
   const [tab, setTab] = useState('pending');
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
+  const [changeRequests, setChangeRequests] = useState([]);
+  const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -37,6 +40,13 @@ export default function AdminPanel() {
   const loadApproved = async (t) => {
     setLoading(true);
     try { setApproved(await getApprovedPhotos(t)); }
+    catch (err) { handleAuthError(err); }
+    finally { setLoading(false); }
+  };
+
+  const loadChangeRequests = async (t) => {
+    setLoading(true);
+    try { setChangeRequests(await getChangeRequests(t)); }
     catch (err) { handleAuthError(err); }
     finally { setLoading(false); }
   };
@@ -55,6 +65,15 @@ export default function AdminPanel() {
     setTab(t);
     setError('');
     if (t === 'approved' && approved.length === 0) loadApproved(token);
+    if (t === 'changes') loadChangeRequests(token);
+    if (t === 'stats') loadStats(token);
+  };
+
+  const loadStats = async (t) => {
+    setLoading(true);
+    try { setStats(await getVisitStats(t)); }
+    catch (err) { handleAuthError(err); }
+    finally { setLoading(false); }
   };
 
   const handleLogin = async (e) => {
@@ -88,6 +107,20 @@ export default function AdminPanel() {
     } catch (err) { setError(err.message); }
   };
 
+  const handleApproveChange = async (id) => {
+    try {
+      await approveChangeRequest(id, token);
+      setChangeRequests((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) { setError(err.message); }
+  };
+
+  const handleRejectChange = async (id) => {
+    try {
+      await rejectChangeRequest(id, token);
+      setChangeRequests((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) { setError(err.message); }
+  };
+
   if (!token) {
     return (
       <div className="admin-login">
@@ -111,7 +144,7 @@ export default function AdminPanel() {
     );
   }
 
-  const currentPhotos = tab === 'pending' ? pending : approved;
+  const currentPhotos = tab === 'pending' ? pending : tab === 'approved' ? approved : [];
 
   return (
     <div className="admin-panel">
@@ -136,12 +169,98 @@ export default function AdminPanel() {
         >
           Freigegeben {approved.length > 0 && <span className="tab-badge">{approved.length}</span>}
         </button>
+        <button
+          className={`admin-tab ${tab === 'changes' ? 'active' : ''}`}
+          onClick={() => switchTab('changes')}
+        >
+          Änderungsanträge {changeRequests.length > 0 && <span className="tab-badge">{changeRequests.length}</span>}
+        </button>
+        <button
+          className={`admin-tab ${tab === 'stats' ? 'active' : ''}`}
+          onClick={() => switchTab('stats')}
+        >
+          Statistik
+        </button>
       </div>
 
       {error && <div className="error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       {loading ? (
         <div className="loading">Lade…</div>
+      ) : tab === 'stats' ? (
+        !stats ? null : (
+          <div className="stats-panel">
+            <div className="stats-summary">
+              <div className="stats-card"><div className="stats-num">{stats.summary.today}</div><div className="stats-label">Heute</div></div>
+              <div className="stats-card"><div className="stats-num">{stats.summary.week}</div><div className="stats-label">7 Tage</div></div>
+              <div className="stats-card"><div className="stats-num">{stats.summary.month}</div><div className="stats-label">30 Tage</div></div>
+              <div className="stats-card"><div className="stats-num">{stats.summary.total}</div><div className="stats-label">Gesamt</div></div>
+            </div>
+            <h3 style={{ margin: '1.5rem 0 0.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Letzte 30 Tage</h3>
+            <div className="stats-chart">
+              {stats.daily.map((row) => {
+                const max = Math.max(...stats.daily.map((r) => parseInt(r.visits)), 1);
+                const pct = Math.max(4, (parseInt(row.visits) / max) * 100);
+                return (
+                  <div key={row.day} className="stats-bar-col" title={`${row.day}: ${row.visits}`}>
+                    <div className="stats-bar" style={{ height: `${pct}%` }} />
+                    <div className="stats-bar-label">{row.day.slice(5)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )
+      ) : tab === 'changes' ? (
+        changeRequests.length === 0 ? (
+          <div className="empty-state"><p>Keine offenen Änderungsanträge.</p></div>
+        ) : (
+          <div className="admin-grid">
+            {changeRequests.map((cr) => (
+              <div key={cr.id} className="admin-card">
+                <img src={`/uploads/${cr.filename}`} alt={cr.current_title || 'Foto'} className="admin-photo" />
+                <div className="admin-card-info">
+                  <div className="admin-card-meta">
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                      Foto #{cr.photo_id} · Antrag vom {fmtDate(cr.created_at)}
+                      {cr.requester_note && <span> · <em>{cr.requester_note}</em></span>}
+                    </div>
+                    {[
+                      ['Titel', 'current_title', 'title'],
+                      ['Aufnahmedatum', 'current_date_taken', 'date_taken'],
+                      ['Fotograf', 'current_photographer_name', 'photographer_name'],
+                      ['Eingereicht von', 'current_uploader_name', 'uploader_name'],
+                      ['Beschreibung', 'current_description', 'description'],
+                      ['Quelle', 'current_source', 'source'],
+                    ].map(([label, curKey, newKey]) => {
+                      const cur = cr[curKey] ? fmtDate(cr[curKey]) === fmtDate(cr[curKey]) && curKey.includes('date') ? fmtDate(cr[curKey]) : cr[curKey] : '–';
+                      const neu = cr[newKey] ? curKey.includes('date') ? fmtDate(cr[newKey]) : cr[newKey] : '–';
+                      const changed = (cr[curKey] || '') !== (cr[newKey] || '');
+                      return (
+                        <div key={label} className={`cr-field${changed ? ' cr-field-changed' : ''}`}>
+                          <strong>{label}:</strong>
+                          {changed ? (
+                            <span>
+                              <span className="cr-old">{cur}</span>
+                              {' → '}
+                              <span className="cr-new">{neu}</span>
+                            </span>
+                          ) : (
+                            <span>{cur}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="admin-card-actions">
+                    <button className="btn-approve" onClick={() => handleApproveChange(cr.id)}>✓ Übernehmen</button>
+                    <button className="btn-reject" onClick={() => handleRejectChange(cr.id)}>✗ Ablehnen</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : currentPhotos.length === 0 ? (
         <div className="empty-state">
           <p>{tab === 'pending' ? 'Keine ausstehenden Uploads. Alles erledigt!' : 'Noch keine freigegebenen Fotos.'}</p>
