@@ -1,0 +1,20 @@
+Entwickel eine WebApp, auf der ich für einen Ort auf einer Karte historische Fotos hochladen kann und andere Nutzer diese sehen können. Wenn ein Nutzer zb ein Foto eines Hauses von vor 100 Jahren hat, kann er dieses Haus auf einer OpenStreetMap-Karte anklicken und ein Foto hochladen.
+
+1. Aussehen
+Die WebApp soll auf dem Desktop genauso funktionieren wie auf Tablet oder Handy. Sie soll responsiv sein und ein minimalistisches, aber professionelle UI haben.
+
+1a) Der User sieht den Ort "Doberlug-Kirchhain" als karte und sieht für alle Fotos, die hinterlegt wurden, eine Markierung. Wenn er drauf klickt, sieht er alle Fotos, die für diesen Ort hinterlegt sind und es gibt auch immer einen CTA_Button ala "Möchten Sie noch ein Bild hinzufügen?"
+1b) Der Nutzer hat die Möglichkeit eigene Fotos an einem Ort zu hinterleghen -  es öffnet sich ein Upload-Modal, das nochmal klarmacht, dass der Nutzer keine verbotenen Bilder hochlädt opder die gegen Copyrights verstoßen. Er kann Meta-Daten angeben, wie zb das Datum des Fotos, seinen Namen/Nickname, Den ersteller des fFotos etc (alles Optional)
+
+1c) Jeder Upload landet erstmal als freizugebener Upload-Request im Admin-Bereich. Der Admin kann ihn freigeben oder ablehnen. Wenn er freigegeben ist, sieht man die Markeirung für dieses Foto dann auf der Karte
+
+1d) Wenn mehrere Fotos für einen Ort exisitieren, zeigt die Markierung zb "7" (also 7 Bilder): bei drauf klick darauf sieht man immer alle Fotos.
+2. Sicherheit
+Alle Variablen und co liegen in einer *.env . Es soll verhindert werden, dass Nutzer SQL/innerHTMl-Attackewn durchführen können und 100x rieseige Dateien hochladen können.
+Der Admin-Bereich ist passwort-verschlüsselt
+
+3. Techstack + Deployment
+Frontend und Backend getrennt, aber in einer docker-compose, siehe dazu Claude.md , auf dem Server dann eine neuen Ordner für diese App. Erstmal nur die IP Url angebenb, wir verknüpfen es später mit einer Domain. Obacht: auf dem Server laufen noch andere Webapps, teilweise mit nginx. Vorher Überblick verschaffen. Der Ordner, in dem wir arbeiten , ist eine git repo. Also bei jeder Änderung pushen und direkt auch auf dem Server deployen.
+
+Hast du Fragen bevor du loslegst?
+Wenn nein: leg los. Erstell dir eine persistierte ToDoList, sodass wir weiter machen können, wenn mal die Tokens alle sind. 
