@@ -12,6 +12,13 @@ export async function getPhotosAtLocation(lat, lng) {
   return res.json();
 }
 
+export async function getPhotoById(id) {
+  const res = await fetch(`${BASE}/photos/${id}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Foto nicht gefunden');
+  return data;
+}
+
 export async function uploadPhoto(formData) {
   const res = await fetch(`${BASE}/photos`, { method: 'POST', body: formData });
   const data = await res.json();
@@ -39,6 +46,15 @@ export async function getPendingPhotos(token) {
   return data;
 }
 
+export async function getApprovedPhotos(token) {
+  const res = await fetch(`${BASE}/admin/photos/approved`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Fehler beim Laden');
+  return data;
+}
+
 export async function updatePhotoStatus(id, status, token) {
   const res = await fetch(`${BASE}/admin/photos/${id}`, {
     method: 'PATCH',
@@ -50,5 +66,15 @@ export async function updatePhotoStatus(id, status, token) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Fehler beim Aktualisieren');
+  return data;
+}
+
+export async function deletePhoto(id, token) {
+  const res = await fetch(`${BASE}/admin/photos/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Fehler beim Löschen');
   return data;
 }

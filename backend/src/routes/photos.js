@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 
@@ -55,7 +56,7 @@ router.get('/location', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, filename, original_filename, title, date_taken,
-              photographer_name, uploader_name, description, created_at
+              photographer_name, uploader_name, description, lat, lng, created_at
        FROM photos
        WHERE status = 'approved' AND lat = $1 AND lng = $2
        ORDER BY created_at DESC`,
@@ -70,6 +71,12 @@ router.get('/location', async (req, res) => {
 // POST /api/photos — submit new photo
 router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+
+  // Reject suspiciously small files (< 5 KB)
+  if (req.file.size < 5 * 1024) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(400).json({ error: 'Das Bild ist zu klein. Bitte lade ein vollständiges Foto hoch (min. 5 KB).' });
+  }
 
   const { lat, lng, title, date_taken, photographer_name, uploader_name, description } = req.body;
   if (!lat || !lng) return res.status(400).json({ error: 'Koordinaten fehlen' });
@@ -94,6 +101,22 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
       ]
     );
     res.status(201).json({ message: 'Foto eingereicht. Es wird vor Veröffentlichung geprüft.' });
+  } catch {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// GET /api/photos/:id — single approved photo (for shareable detail page)
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, lat, lng, filename, original_filename, title, date_taken,
+              photographer_name, uploader_name, description, created_at
+       FROM photos WHERE id = $1 AND status = 'approved'`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Foto nicht gefunden' });
+    res.json(result.rows[0]);
   } catch {
     res.status(500).json({ error: 'Datenbankfehler' });
   }

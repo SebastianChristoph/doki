@@ -8,12 +8,21 @@ export default function PhotoGalleryModal({ location, onClose, onUpload }) {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     getPhotosAtLocation(location.lat, location.lng)
       .then((data) => { setPhotos(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [location]);
+
+  const handleShare = (photo) => {
+    const url = `${window.location.origin}/photo/${photo.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -27,14 +36,45 @@ export default function PhotoGalleryModal({ location, onClose, onUpload }) {
             <div className="loading">Lade Fotos…</div>
           ) : selected ? (
             <div className="photo-detail">
-              <button className="btn-back" onClick={() => setSelected(null)}>← Zurück zur Übersicht</button>
+              <div className="photo-detail-nav">
+                <button className="btn-back" onClick={() => { setSelected(null); setCopied(false); }}>
+                  ← Zurück zur Übersicht
+                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    className={`btn-share-sm ${copied ? 'btn-share-copied' : ''}`}
+                    onClick={() => handleShare(selected)}
+                    title="Link zur Detailseite kopieren"
+                  >
+                    {copied ? '✓ Link kopiert!' : '🔗 Teilen'}
+                  </button>
+                  <a
+                    href={`/photo/${selected.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-share-sm"
+                  >
+                    ↗ Detailseite
+                  </a>
+                </div>
+              </div>
               <img src={`/uploads/${selected.filename}`} alt={selected.title || 'Foto'} className="photo-full" />
               <div className="photo-meta">
                 {selected.title && <h3>{selected.title}</h3>}
-                {fmtDate(selected.date_taken) && <p><strong>Aufnahmedatum:</strong> {fmtDate(selected.date_taken)}</p>}
-                {selected.photographer_name && <p><strong>Fotograf:</strong> {selected.photographer_name}</p>}
-                {selected.uploader_name && <p><strong>Eingereicht von:</strong> {selected.uploader_name}</p>}
+                {fmtDate(selected.date_taken) && (
+                  <p><strong>Aufnahmedatum:</strong> {fmtDate(selected.date_taken)}</p>
+                )}
+                {selected.photographer_name && (
+                  <p><strong>Fotograf:</strong> {selected.photographer_name}</p>
+                )}
+                {selected.uploader_name && (
+                  <p><strong>Eingereicht von:</strong> {selected.uploader_name}</p>
+                )}
                 {selected.description && <p>{selected.description}</p>}
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.25rem' }}>
+                  📍 {parseFloat(selected.lat || location.lat).toFixed(5)}° N,{' '}
+                  {parseFloat(selected.lng || location.lng).toFixed(5)}° E
+                </p>
               </div>
             </div>
           ) : (
@@ -42,7 +82,7 @@ export default function PhotoGalleryModal({ location, onClose, onUpload }) {
               {photos.length === 0 ? (
                 <div className="loading">Keine Fotos gefunden.</div>
               ) : (
-                <div className="photo-grid">
+                <div className="photo-masonry">
                   {photos.map((photo) => (
                     <div key={photo.id} className="photo-thumb" onClick={() => setSelected(photo)}>
                       <img src={`/uploads/${photo.filename}`} alt={photo.title || 'Foto'} />
@@ -52,8 +92,10 @@ export default function PhotoGalleryModal({ location, onClose, onUpload }) {
                 </div>
               )}
               <div className="gallery-footer">
-                <button className="btn-primary"
-                  onClick={() => onUpload({ lat: location.lat, lng: location.lng })}>
+                <button
+                  className="btn-primary"
+                  onClick={() => onUpload({ lat: location.lat, lng: location.lng })}
+                >
                   + Weiteres Foto hinzufügen
                 </button>
               </div>

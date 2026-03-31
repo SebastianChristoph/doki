@@ -1,0 +1,22 @@
+im admin-panel möchte ich die freizugebenen Fotos auch auf der karte sehen - ich will ja wissen, ob das Bild auch zur Orts-Markierung passt
+
+-
+die Seite braucht ein Impressum
+(Sebastian Christoph, am Stadion 17, 36433 Bad Salzungen, hallo@sebastianchristoph.de ) 
+-
+im Admin-Panel möchte ich Bilder löschen können, die bereits einem Ort zugewiesen wurden
+-
+Es braucht rechts einen Drawer (Tablet und Browser, Handy Burgermenü), der kurz erklärt, was die Seite kann und will
+-
+es soll sichergestellt werden, dass man nur Fotos in Doberlug-Kirchhain setzen kann (evtl einen 10km Radius drum herum) außerhalb nicht (evtl auch gar nicht so weit raus-zoombar)
+-
+wenn ich eine Markierung anklicke, sehe ich die Vorschau aller Bilder. Wenn ich eins Anklicke, sehe ich es im Detail. DIESE Seite soll teilbar sein, sodass man es jemanden senden kann ala "Schau mal, erinnerst du dich noch wie es früher da aussah?"
+Die Seite soll auch die GPS-Koordinaten oder Adresse beinhalten (speicher wir das schon mit?)
+-
+wie gehen wir damit um, wenn User entweder sehr sehr kleine Bilder oder riesen-Bilder hochladen?
+-
+schau dir s1.png auf dem Desktop an -  ich hätte gern, dass die Vorschau für jedes Bild das gesamte Bild zeigt . Evtl als Art masonry gallerie oder so.
+
+-
+erstelle ein Favicon, was zur Seite passt und nutze es
+-
