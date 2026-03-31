@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getPhotosAtLocation } from '../api';
+import { copyToClipboard } from '../utils';
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
@@ -18,7 +19,7 @@ export default function PhotoGalleryModal({ location, onClose, onUpload }) {
 
   const handleShare = (photo) => {
     const url = `${window.location.origin}/photo/${photo.id}`;
-    navigator.clipboard.writeText(url).then(() => {
+    copyToClipboard(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     });

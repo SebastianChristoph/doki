@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPhotoById } from '../api';
+import { copyToClipboard } from '../utils';
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
@@ -43,7 +44,7 @@ export default function PhotoDetailPage() {
   }, [photo]);
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
+    copyToClipboard(window.location.href).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     });
