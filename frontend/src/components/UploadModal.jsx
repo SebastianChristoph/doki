@@ -33,7 +33,6 @@ export default function UploadModal({ location, onClose, onSuccess }) {
     try {
       await uploadPhoto(fd);
       setDone(true);
-      setTimeout(onSuccess, 1800);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -50,8 +49,16 @@ export default function UploadModal({ location, onClose, onSuccess }) {
         </div>
         <div className="modal-body">
           {done ? (
-            <div className="success-msg" style={{ textAlign: 'center', padding: '2rem', fontSize: '0.95rem' }}>
-              Vielen Dank! Dein Foto wurde eingereicht und wird geprüft.
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem' }}>📬</div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Foto eingereicht!</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: 340 }}>
+                Vielen Dank. Dein Foto wurde erfolgreich übermittelt und wird von einem Admin geprüft,
+                bevor es auf der Karte erscheint.
+              </p>
+              <button className="btn-primary" style={{ marginTop: '0.5rem' }} onClick={onSuccess}>
+                Schließen
+              </button>
             </div>
           ) : (
             <>
