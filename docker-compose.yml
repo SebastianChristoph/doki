@@ -3,12 +3,26 @@ services:
     build: ./frontend
     container_name: doki-frontend
     restart: unless-stopped
-    ports:
-      - "3001:80"
     depends_on:
       - backend
     networks:
       - internal
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # non-www
+      - "traefik.http.routers.doki.rule=Host(`doberlug-kirchhain-historische-fotos.de`)"
+      - "traefik.http.routers.doki.entrypoints=websecure"
+      - "traefik.http.routers.doki.tls.certresolver=letsencrypt"
+      - "traefik.http.services.doki.loadbalancer.server.port=80"
+      # www → non-www redirect
+      - "traefik.http.routers.doki-www.rule=Host(`www.doberlug-kirchhain-historische-fotos.de`)"
+      - "traefik.http.routers.doki-www.entrypoints=websecure"
+      - "traefik.http.routers.doki-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.doki-www.middlewares=doki-www-redirect"
+      - "traefik.http.middlewares.doki-www-redirect.redirectregex.regex=^https://www\\.doberlug-kirchhain-historische-fotos\\.de/(.*)"
+      - "traefik.http.middlewares.doki-www-redirect.redirectregex.replacement=https://doberlug-kirchhain-historische-fotos.de/$${1}"
+      - "traefik.http.middlewares.doki-www-redirect.redirectregex.permanent=true"
 
   backend:
     build: ./backend
@@ -49,3 +63,5 @@ volumes:
 networks:
   internal:
     driver: bridge
+  traefik-proxy:
+    external: true
