@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { getPhotoLocations, trackVisit, getRandomPhoto } from '../api';
+import { getPhotoLocations, trackVisit, getRandomPhoto, getArchiveInfo } from '../api';
 import { useNavigate } from 'react-router-dom';
 import UploadModal from './UploadModal';
 import PhotoGalleryModal from './PhotoGalleryModal';
@@ -44,6 +44,7 @@ export default function MapView() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [surprising, setSurprising] = useState(false);
+  const [archiveInfo, setArchiveInfo] = useState(null);
   const markerClicked = useRef(false);
 
   const loadLocations = useCallback(async () => {
@@ -54,6 +55,7 @@ export default function MapView() {
   }, []);
 
   useEffect(() => { loadLocations(); }, [loadLocations]);
+  useEffect(() => { getArchiveInfo().then(setArchiveInfo).catch(() => {}); }, []);
 
   useEffect(() => {
     if (!localStorage.getItem('dokiAdminToken')) trackVisit();
@@ -99,6 +101,23 @@ export default function MapView() {
         <div className="header-content">
           <span className="header-title">Doberlug-Kirchhain</span>
           <span className="header-subtitle">Historische Fotos & Stadtansichten</span>
+          {archiveInfo && (
+            <span className="header-archive-info">
+              <span className="header-archive-count">{archiveInfo.count} Fotos im Archiv</span>
+              {archiveInfo.latest && (
+                <span className="header-archive-sep"> · </span>
+              )}
+              {archiveInfo.latest && (
+                <span
+                  className="header-archive-latest"
+                  onClick={() => navigate(`/photo/${archiveInfo.latest.id}`)}
+                  title={archiveInfo.latest.title}
+                >
+                  Zuletzt: {archiveInfo.latest.title}
+                </span>
+              )}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button className="btn-surprise" onClick={handleSurprise} disabled={surprising} title="Zufälliges Foto öffnen">

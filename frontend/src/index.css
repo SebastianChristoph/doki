@@ -64,6 +64,27 @@ body {
   white-space: nowrap;
 }
 
+.header-archive-info {
+  display: none;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  align-items: center;
+}
+.header-archive-count { color: rgba(255,255,255,0.55); }
+.header-archive-sep { margin: 0 0.1rem; }
+.header-archive-latest {
+  color: var(--amber);
+  cursor: pointer;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.header-archive-latest:hover { text-decoration: underline; }
+@media (min-width: 768px) { .header-archive-info { display: inline-flex; } }
+
 .header-info-btn {
   background: none;
   border: 1px solid rgba(255,255,255,0.35);

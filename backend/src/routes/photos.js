@@ -48,6 +48,24 @@ const parseDate = (raw) => {
 const isPrivateHost = (hostname) =>
   /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/i.test(hostname);
 
+// GET /api/photos/archive-info — total count + latest approved photo
+router.get('/archive-info', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM photos WHERE status = 'approved') AS count,
+        id, title
+      FROM photos WHERE status = 'approved'
+      ORDER BY created_at DESC LIMIT 1
+    `);
+    if (!result.rows.length) return res.json({ count: 0, latest: null });
+    const { count, id, title } = result.rows[0];
+    res.json({ count: parseInt(count), latest: { id, title } });
+  } catch {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
 // GET /api/photos/random — random approved photo
 router.get('/random', async (req, res) => {
   try {

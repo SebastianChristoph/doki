@@ -79,6 +79,12 @@ export async function deletePhoto(id, token) {
   return data;
 }
 
+export async function getArchiveInfo() {
+  const res = await fetch(`${BASE}/photos/archive-info`);
+  if (!res.ok) throw new Error('Fehler');
+  return res.json();
+}
+
 export async function getRandomPhoto() {
   const res = await fetch(`${BASE}/photos/random`);
   const data = await res.json();
