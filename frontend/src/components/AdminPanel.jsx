@@ -202,9 +202,9 @@ export default function AdminPanel() {
                 const max = Math.max(...stats.daily.map((r) => parseInt(r.visits)), 1);
                 const pct = Math.max(4, (parseInt(row.visits) / max) * 100);
                 return (
-                  <div key={row.day} className="stats-bar-col" title={`${(() => { const [y,m,d] = row.day.split('-'); return `${d}.${m}.${y}`; })()}: ${row.visits} Besucher`}>
+                  <div key={row.day} className="stats-bar-col" title={`${(() => { const [y,m,d] = row.day.slice(0,10).split('-'); return `${d}.${m}.${y}`; })()}: ${row.visits} Besucher`}>
                     <div className="stats-bar" style={{ height: `${pct}%` }} />
-                    <div className="stats-bar-label">{(() => { const [y,m,d] = row.day.split('-'); return `${d}.${m}.${y}`; })()}</div>
+                    <div className="stats-bar-label">{(() => { const [y,m,d] = row.day.slice(0,10).split('-'); return `${d}.${m}.${y}`; })()}</div>
                   </div>
                 );
               })}
