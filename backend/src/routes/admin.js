@@ -90,7 +90,7 @@ router.get('/stats', auth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
-        COUNT(*) FILTER (WHERE visited_at >= NOW() - INTERVAL '1 day')   AS today,
+        COUNT(*) FILTER (WHERE DATE(visited_at AT TIME ZONE 'Europe/Berlin') = (NOW() AT TIME ZONE 'Europe/Berlin')::date) AS today,
         COUNT(*) FILTER (WHERE visited_at >= NOW() - INTERVAL '7 days')  AS week,
         COUNT(*) FILTER (WHERE visited_at >= NOW() - INTERVAL '30 days') AS month,
         COUNT(*) AS total
