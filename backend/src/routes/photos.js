@@ -39,10 +39,11 @@ const sanitize = (s, maxLen = 255) =>
   s ? String(s).trim().slice(0, maxLen) : null;
 
 const parseDate = (raw) => {
-  if (!raw) return { dateTaken: null, yearOnly: false };
+  if (!raw) return { dateTaken: null, yearOnly: false, invalid: false };
   const s = String(raw).trim();
-  if (/^\d{4}$/.test(s)) return { dateTaken: `${s}-01-01`, yearOnly: true };
-  return { dateTaken: s, yearOnly: false };
+  if (/^\d{4}$/.test(s)) return { dateTaken: `${s}-01-01`, yearOnly: true, invalid: false };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return { dateTaken: s, yearOnly: false, invalid: false };
+  return { dateTaken: null, yearOnly: false, invalid: true };
 };
 
 const isPrivateHost = (hostname) =>
@@ -196,7 +197,8 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
 
   const roundedLat = parseFloat(lat).toFixed(7);
   const roundedLng = parseFloat(lng).toFixed(7);
-  const { dateTaken, yearOnly } = parseDate(date_taken);
+  const { dateTaken, yearOnly, invalid: invalidDate } = parseDate(date_taken);
+  if (invalidDate) return res.status(400).json({ error: 'Ungültiges Datumsformat. Bitte nur Jahr (z. B. 1994) oder Datum (z. B. 1994-08-15) eingeben.' });
 
   try {
     await pool.query(
