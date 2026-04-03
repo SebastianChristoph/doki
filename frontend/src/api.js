@@ -22,7 +22,11 @@ export async function getPhotoById(id) {
 export async function uploadPhoto(formData) {
   const res = await fetch(`${BASE}/photos`, { method: 'POST', body: formData });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Upload fehlgeschlagen');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Upload fehlgeschlagen');
+    if (res.status >= 500) err.serverError = true;
+    throw err;
+  }
   return data;
 }
 
@@ -150,5 +154,24 @@ export async function rejectChangeRequest(id, token) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Fehler beim Ablehnen');
+  return data;
+}
+
+export async function getErrorLogs(token) {
+  const res = await fetch(`${BASE}/admin/errors`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Fehler beim Laden');
+  return data;
+}
+
+export async function clearErrorLogs(token) {
+  const res = await fetch(`${BASE}/admin/errors`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Fehler beim Leeren');
   return data;
 }

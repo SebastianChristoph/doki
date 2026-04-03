@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
 const rateLimit = require('express-rate-limit');
-const { pool } = require('../db');
+const { pool, logError } = require('../db');
 const { notifyNewUpload, notifyNewChangeRequest } = require('../mailer');
 
 const MIME_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
@@ -61,7 +61,8 @@ router.get('/archive-info', async (req, res) => {
     if (!result.rows.length) return res.json({ count: 0, latest: null });
     const { count, id, title } = result.rows[0];
     res.json({ count: parseInt(count), latest: { id, title } });
-  } catch {
+  } catch (err) {
+    logError('GET /api/photos/archive-info', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -74,7 +75,8 @@ router.get('/random', async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Keine Fotos vorhanden' });
     res.json(result.rows[0]);
-  } catch {
+  } catch (err) {
+    logError('GET /api/photos/random', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -91,7 +93,8 @@ router.get('/', async (req, res) => {
       GROUP BY lat, lng
     `);
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logError('GET /api/photos', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -110,7 +113,8 @@ router.get('/location', async (req, res) => {
       [parseFloat(lat).toFixed(7), parseFloat(lng).toFixed(7)]
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logError('GET /api/photos/location', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -214,8 +218,14 @@ router.post('/', uploadLimiter, upload.single('photo'), async (req, res) => {
     );
     notifyNewUpload({ title: sanitize(title), uploader_name: sanitize(uploader_name), lat: roundedLat, lng: roundedLng });
     res.status(201).json({ message: 'Foto eingereicht. Es wird vor Veröffentlichung geprüft.' });
-  } catch {
-    res.status(500).json({ error: 'Datenbankfehler' });
+  } catch (err) {
+    logError('POST /api/photos', err);
+    const msg = err?.code === 'ECONNREFUSED' || err?.code === '57P03'
+      ? 'Datenbankverbindung fehlgeschlagen – bitte später erneut versuchen.'
+      : err?.code === '23505'
+        ? 'Dieses Foto wurde bereits hochgeladen.'
+        : `Datenbankfehler: ${err?.message ?? 'Unbekannter Fehler'}`;
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -239,7 +249,8 @@ router.get('/:id/nearby', async (req, res) => {
       [req.params.id, parseFloat(lat), parseFloat(lng)]
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logError(`GET /api/photos/${req.params.id}/nearby`, err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -274,7 +285,8 @@ router.post('/:id/change-request', uploadLimiter, async (req, res) => {
     );
     notifyNewChangeRequest(req.params.id, sanitize(req.body.requester_note, 500));
     res.status(201).json({ message: 'Änderungsantrag eingereicht. Er wird von einem Admin geprüft.' });
-  } catch {
+  } catch (err) {
+    logError(`POST /api/photos/${req.params.id}/change-request`, err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -290,7 +302,8 @@ router.get('/:id', async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Foto nicht gefunden' });
     res.json(result.rows[0]);
-  } catch {
+  } catch (err) {
+    logError(`GET /api/photos/${req.params.id}`, err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });

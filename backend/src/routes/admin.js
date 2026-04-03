@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
-const { pool } = require('../db');
+const { pool, logError } = require('../db');
 
 function auth(req, res, next) {
   const header = req.headers.authorization;
@@ -35,7 +35,8 @@ router.get('/photos', auth, async (req, res) => {
       `SELECT * FROM photos WHERE status = 'pending' ORDER BY created_at ASC`
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logError('GET /api/admin/photos', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -47,7 +48,8 @@ router.get('/photos/approved', auth, async (req, res) => {
       `SELECT * FROM photos WHERE status = 'approved' ORDER BY created_at DESC`
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logError('GET /api/admin/photos/approved', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -65,7 +67,8 @@ router.patch('/photos/:id', auth, async (req, res) => {
     );
     if (result.rowCount === 0) return res.status(404).json({ error: 'Nicht gefunden' });
     res.json({ message: 'Aktualisiert' });
-  } catch {
+  } catch (err) {
+    logError(`PATCH /api/admin/photos/${req.params.id}`, err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -80,7 +83,8 @@ router.delete('/photos/:id', auth, async (req, res) => {
     if (result.rowCount === 0) return res.status(404).json({ error: 'Nicht gefunden' });
     fs.unlink(`/app/uploads/${result.rows[0].filename}`, () => {});
     res.json({ message: 'Gelöscht' });
-  } catch {
+  } catch (err) {
+    logError(`DELETE /api/admin/photos/${req.params.id}`, err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -103,7 +107,8 @@ router.get('/stats', auth, async (req, res) => {
       GROUP BY day ORDER BY day ASC
     `);
     res.json({ summary: result.rows[0], daily: daily.rows });
-  } catch {
+  } catch (err) {
+    logError('GET /api/admin/stats', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -123,7 +128,8 @@ router.get('/change-requests', auth, async (req, res) => {
       ORDER BY cr.created_at ASC
     `);
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logError('GET /api/admin/change-requests', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -148,7 +154,8 @@ router.post('/change-requests/:id/approve', auth, async (req, res) => {
       [req.params.id]
     );
     res.json({ message: 'Änderung freigegeben' });
-  } catch {
+  } catch (err) {
+    logError(`POST /api/admin/change-requests/${req.params.id}/approve`, err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -162,7 +169,32 @@ router.delete('/change-requests/:id', auth, async (req, res) => {
     );
     if (!result.rowCount) return res.status(404).json({ error: 'Nicht gefunden' });
     res.json({ message: 'Abgelehnt' });
-  } catch {
+  } catch (err) {
+    logError(`DELETE /api/admin/change-requests/${req.params.id}`, err);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// GET /api/admin/errors — error log
+router.get('/errors', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, route, message, stack, created_at FROM error_logs ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[GET /api/admin/errors]', err);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// DELETE /api/admin/errors — clear all error logs
+router.delete('/errors', auth, async (req, res) => {
+  try {
+    await pool.query(`TRUNCATE error_logs`);
+    res.json({ message: 'Fehlerprotokoll geleert' });
+  } catch (err) {
+    console.error('[DELETE /api/admin/errors]', err);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });

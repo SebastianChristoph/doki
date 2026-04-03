@@ -63,6 +63,28 @@ async function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_cr_status ON photo_change_requests(status);
   `);
+  // Migration: error logs
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS error_logs (
+      id SERIAL PRIMARY KEY,
+      route VARCHAR(150),
+      message TEXT,
+      stack TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_error_logs_at ON error_logs(created_at);
+  `);
 }
 
-module.exports = { pool, initDb };
+async function logError(route, err) {
+  try {
+    await pool.query(
+      `INSERT INTO error_logs (route, message, stack) VALUES ($1, $2, $3)`,
+      [route, err?.message ?? String(err), err?.stack ?? null]
+    );
+  } catch (e) {
+    console.error('[logError] Failed to persist error:', e.message);
+  }
+}
+
+module.exports = { pool, initDb, logError };

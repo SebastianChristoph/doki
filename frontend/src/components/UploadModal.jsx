@@ -16,6 +16,7 @@ export default function UploadModal({ location, onClose, onSuccess }) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [serverError, setServerError] = useState(false);
   const [done, setDone] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -38,11 +39,13 @@ export default function UploadModal({ location, onClose, onSuccess }) {
 
     setLoading(true);
     setError('');
+    setServerError(false);
     try {
       await uploadPhoto(fd);
       setDone(true);
     } catch (err) {
       setError(err.message);
+      if (err.serverError) setServerError(true);
     } finally {
       setLoading(false);
     }
@@ -156,7 +159,16 @@ export default function UploadModal({ location, onClose, onSuccess }) {
                     und keine Urheberrechte verletze.
                   </label>
                 </div>
-                {error && <div className="error-msg">{error}</div>}
+                {error && (
+                  <div className="error-msg">
+                    {error}
+                    {serverError && (
+                      <div style={{ marginTop: '0.3rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Dieser Fehler wurde automatisch an den Admin gemeldet und wird analysiert.
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="form-actions">
                   <button type="button" className="btn-secondary" onClick={onClose}>Abbrechen</button>
                   <button type="submit" className="btn-primary" disabled={loading}>

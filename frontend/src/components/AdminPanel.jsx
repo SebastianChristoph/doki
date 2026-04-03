@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminLogin, getPendingPhotos, getApprovedPhotos, updatePhotoStatus, deletePhoto,
-  getChangeRequests, approveChangeRequest, rejectChangeRequest, getVisitStats } from '../api';
+  getChangeRequests, approveChangeRequest, rejectChangeRequest, getVisitStats,
+  getErrorLogs, clearErrorLogs } from '../api';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('de-DE') : '–');
 
@@ -27,6 +28,8 @@ export default function AdminPanel() {
   const [approved, setApproved] = useState([]);
   const [changeRequests, setChangeRequests] = useState([]);
   const [stats, setStats] = useState(null);
+  const [errorLogs, setErrorLogs] = useState(null);
+  const [expandedStack, setExpandedStack] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -67,6 +70,7 @@ export default function AdminPanel() {
     if (t === 'approved' && approved.length === 0) loadApproved(token);
     if (t === 'changes') loadChangeRequests(token);
     if (t === 'stats') loadStats(token);
+    if (t === 'errors') loadErrorLogs(token);
   };
 
   const loadStats = async (t) => {
@@ -74,6 +78,21 @@ export default function AdminPanel() {
     try { setStats(await getVisitStats(t)); }
     catch (err) { handleAuthError(err); }
     finally { setLoading(false); }
+  };
+
+  const loadErrorLogs = async (t) => {
+    setLoading(true);
+    try { setErrorLogs(await getErrorLogs(t)); }
+    catch (err) { handleAuthError(err); }
+    finally { setLoading(false); }
+  };
+
+  const handleClearErrors = async () => {
+    if (!confirm('Alle Fehlereinträge löschen?')) return;
+    try {
+      await clearErrorLogs(token);
+      setErrorLogs([]);
+    } catch (err) { setError(err.message); }
   };
 
   const handleLogin = async (e) => {
@@ -181,6 +200,12 @@ export default function AdminPanel() {
         >
           Statistik
         </button>
+        <button
+          className={`admin-tab ${tab === 'errors' ? 'active' : ''}`}
+          onClick={() => switchTab('errors')}
+        >
+          Fehlerlog {errorLogs?.length > 0 && <span className="tab-badge">{errorLogs.length}</span>}
+        </button>
       </div>
 
       {error && <div className="error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
@@ -211,6 +236,47 @@ export default function AdminPanel() {
             </div>
           </div>
         )
+      ) : tab === 'errors' ? (
+        <div className="error-log-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              {errorLogs ? `${errorLogs.length} Einträge (max. 200)` : ''}
+            </span>
+            {errorLogs?.length > 0 && (
+              <button className="btn-reject" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }} onClick={handleClearErrors}>
+                Alle löschen
+              </button>
+            )}
+          </div>
+          {!errorLogs || errorLogs.length === 0 ? (
+            <div className="empty-state"><p>Keine Fehler protokolliert.</p></div>
+          ) : (
+            <div className="error-log-list">
+              {errorLogs.map((entry) => (
+                <div key={entry.id} className="error-log-entry">
+                  <div className="error-log-header">
+                    <span className="error-log-route">{entry.route || '–'}</span>
+                    <span className="error-log-time">
+                      {new Date(entry.created_at).toLocaleString('de-DE')}
+                    </span>
+                  </div>
+                  <div className="error-log-message">{entry.message}</div>
+                  {entry.stack && (
+                    <button
+                      className="error-log-stack-toggle"
+                      onClick={() => setExpandedStack(expandedStack === entry.id ? null : entry.id)}
+                    >
+                      {expandedStack === entry.id ? '▲ Stack verbergen' : '▼ Stack anzeigen'}
+                    </button>
+                  )}
+                  {expandedStack === entry.id && entry.stack && (
+                    <pre className="error-log-stack">{entry.stack}</pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : tab === 'changes' ? (
         changeRequests.length === 0 ? (
           <div className="empty-state"><p>Keine offenen Änderungsanträge.</p></div>
