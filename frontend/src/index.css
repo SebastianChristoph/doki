@@ -859,6 +859,7 @@ body {
 }
 .btn-surprise:hover { background: #a8651a; }
 .btn-surprise:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 600px) { .btn-surprise { display: none; } }
 
 
 /* Nearby photos section */
