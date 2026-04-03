@@ -26,6 +26,20 @@ async function sendMail(subject, html) {
   }
 }
 
+async function sendPush(title, message) {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return;
+  try {
+    await fetch(`https://ntfy.sh/${topic}`, {
+      method: 'POST',
+      headers: { 'Title': title, 'Priority': 'default', 'Tags': 'camera' },
+      body: message,
+    });
+  } catch (err) {
+    console.error('Push error:', err.message);
+  }
+}
+
 function notifyNewUpload(photo) {
   const title = photo.title || '(kein Titel)';
   const uploader = photo.uploader_name || 'Anonym';
@@ -39,6 +53,7 @@ function notifyNewUpload(photo) {
      </ul>
      <p><a href="${BASE_URL}/admin">→ Zum Admin-Bereich</a></p>`
   );
+  sendPush(`📷 Neues Foto: ${title}`, `Von: ${uploader} · ${BASE_URL}/admin`);
 }
 
 function notifyNewChangeRequest(photoId, note) {
