@@ -127,7 +127,8 @@ export default function UploadModal({ location, onClose, onSuccess }) {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Aufnahmedatum (optional)</label>
-                    <input type="text" value={form.date_taken} onChange={set('date_taken')}
+                    <input type="text" value={form.date_taken}
+                      onChange={(e) => setForm((f) => ({ ...f, date_taken: e.target.value.replace(/[^\d-]/g, '') }))}
                       placeholder="z. B. 1923 oder 1923-08-15" maxLength={10} />
                   </div>
                   <div className="form-group">
