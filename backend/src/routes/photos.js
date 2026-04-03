@@ -43,6 +43,9 @@ const parseDate = (raw) => {
   const s = String(raw).trim();
   if (/^\d{4}$/.test(s)) return { dateTaken: `${s}-01-01`, yearOnly: true, invalid: false };
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return { dateTaken: s, yearOnly: false, invalid: false };
+  // dd.mm.yyyy
+  const dotMatch = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dotMatch) return { dateTaken: `${dotMatch[3]}-${dotMatch[2]}-${dotMatch[1]}`, yearOnly: false, invalid: false };
   return { dateTaken: null, yearOnly: false, invalid: true };
 };
 
